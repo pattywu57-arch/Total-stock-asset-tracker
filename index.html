@@ -228,28 +228,23 @@
         };
         onMounted(() => { loadData(); renderCharts(); });
 
-                const latestRecord = computed(() => records.value.length > 0 ? records.value[records.value.length - 1] : null);
+                    const latestRecord = computed(() => records.value.length > 0 ? records.value[records.value.length - 1] : null);
 
-        // 自動從最新紀錄的細項加總台股總額
+        // 直接抓取最新紀錄的總和欄位，確保絕對是數字
         const latestTwTotal = computed(() => {
-          if (!latestRecord.value || !latestRecord.value.twAssets) return 0;
-          return Object.values(latestRecord.value.twAssets).reduce((a, b) => a + Number(b || 0), 0);
+          if (!latestRecord.value) return 0;
+          return Number(latestRecord.value.totalTW || 0);
         });
 
-        // 自動從最新紀錄的細項加總美股總額
         const latestUsTotal = computed(() => {
-          if (!latestRecord.value || !latestRecord.value.usAssets) return 0;
-          let sum = 0;
-          settings.value.usAccounts.forEach(acc => {
-            let val = Number(latestRecord.value.usAssets[acc] || 0);
-            sum += (getUsAccCurrency(acc) === 'TWD' ? val / settings.value.usdRate : val);
-          });
-          return sum;
+          if (!latestRecord.value) return 0;
+          return Number(latestRecord.value.totalUS || 0);
         });
 
         const totalAssetTwd = computed(() => {
           return latestTwTotal.value + (latestUsTotal.value * settings.value.usdRate);
         });
+
 
         const twPnL = computed(() => latestRecord.value ? latestRecord.value.totalTW - costTW.value : 0);
         const usPnL = computed(() => latestRecord.value ? latestRecord.value.totalUS - costUS.value : 0);
