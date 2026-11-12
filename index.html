@@ -20,17 +20,44 @@
     <main class="flex-1 p-4 overflow-y-auto">
       <!-- 首頁畫面 -->
       <div v-show="activeTab === 'home'">
-        <div class="bg-white rounded-xl shadow p-5 mb-6 text-center border border-gray-100">
-          <p class="text-gray-500 text-sm mb-1">總資產 (TWD)</p>
-          <h2 class="text-3xl font-bold mb-4 text-gray-800">{{ formatMoney(totalAssetTwd) }}</h2>
-          <div class="grid grid-cols-2 gap-4 border-t pt-4">
+               <div class="bg-white rounded-xl shadow p-5 mb-6 text-center border border-gray-100">
+          <div class="grid grid-cols-2 gap-4">
+            <!-- 左側：總資產與明細 -->
             <div>
-              <p class="text-xs text-gray-500 mb-1">台股總損益</p>
-              <p :class="['font-semibold', twPnL >= 0 ? 'text-red-500' : 'text-green-500']">{{ twPnL >= 0 ? '+' : '' }}{{ formatMoney(twPnL) }}</p>
+              <p class="text-gray-500 text-xs mb-1">總資產 (TWD)</p>
+              <h2 class="text-2xl font-bold mb-3 text-gray-800">{{ formatMoney(totalAssetTwd) }}</h2>
+              <div class="border-t pt-2 text-left space-y-1">
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-500">台股：</span>
+                  <span class="font-medium">{{ formatMoney(latestRecord ? latestRecord.totalTW : 0) }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-500">美股(USD)：</span>
+                  <span class="font-medium">{{ formatMoney(latestRecord ? latestRecord.totalUS : 0) }}</span>
+                </div>
+                <div class="text-[10px] text-gray-400 text-right">約 TWD {{ formatMoney((latestRecord ? latestRecord.totalUS : 0) * settings.usdRate) }}</div>
+              </div>
             </div>
-            <div class="border-l">
-              <p class="text-xs text-gray-500 mb-1">美股總損益 (USD)</p>
-              <p :class="['font-semibold', usPnL >= 0 ? 'text-red-500' : 'text-green-500']">{{ usPnL >= 0 ? '+' : '' }}{{ formatMoney(usPnL) }}</p>
+
+            <!-- 右側：總損益與明細 -->
+            <div class="border-l pl-4">
+              <p class="text-gray-500 text-xs mb-1">總損益 (TWD)</p>
+              <h2 :class="['text-2xl font-bold mb-3', (twPnL + (usPnL * settings.usdRate)) >= 0 ? 'text-red-500' : 'text-green-500']">
+                {{ (twPnL + (usPnL * settings.usdRate)) >= 0 ? '+' : '' }}{{ formatMoney(twPnL + (usPnL * settings.usdRate)) }}
+              </h2>
+              <div class="border-t pt-2 text-left space-y-1">
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-500">台股損益：</span>
+                  <span :class="['font-medium', twPnL >= 0 ? 'text-red-500' : 'text-green-500']">{{ twPnL >= 0 ? '+' : '' }}{{ formatMoney(twPnL) }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-500">美股損益：</span>
+                  <span :class="['font-medium', usPnL >= 0 ? 'text-red-500' : 'text-green-500']">{{ usPnL >= 0 ? '+' : '' }}{{ formatMoney(usPnL) }} USD</span>
+                </div>
+                <div :class="['text-[10px] text-right', (usPnL * settings.usdRate) >= 0 ? 'text-red-400' : 'text-green-400']">
+                  約 TWD {{ (usPnL * settings.usdRate) >= 0 ? '+' : '' }}{{ formatMoney(usPnL * settings.usdRate) }}
+                </div>
+              </div>
             </div>
           </div>
         </div>
