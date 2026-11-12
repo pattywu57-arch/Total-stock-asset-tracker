@@ -171,21 +171,26 @@
           }
         };
 
-        const addAccount = (type) => {
+               const addAccount = (type) => {
           if (type === 'tw') {
             const name = newTwAccountName.value.trim();
             if (!name) return alert('請輸入名稱');
             settings.value.twAccounts.push(name);
             newTwAccountName.value = '';
+          } else {
+            const name = newUsAccountName.value.trim();
+            if (!name) return alert('請輸入名稱');
+            settings.value.usAccounts.push(name);
+            newUsAccountName.value = '';
           }
           saveData();
         };
 
         const removeAccount = (type, index) => {
           if (type === 'tw') settings.value.twAccounts.splice(index, 1);
+          else settings.value.usAccounts.splice(index, 1);
           saveData();
         };
-
         onMounted(() => { loadData(); renderCharts(); });
 
         const latestRecord = computed(() => records.value.length > 0 ? records.value[records.value.length - 1] : null);
