@@ -8,9 +8,17 @@ const getUsAccCurrency = (acc) => settings.value.usAccountCurrencies[acc] || 'US
 const toggleUsInCurrency = () => { form.value.usInCurrency = form.value.usInCurrency === 'USD' ? 'TWD' : 'USD'; }; const toggleUsOutCurrency = () => { form.value.usOutCurrency = form.value.usOutCurrency === 'USD' ? 'TWD' : 'USD'; };
 const onDateChange = () => { const target = records.value.find(r => r.date === form.value.date); if (target) { form.value.twAssets = target.twAssets ? { ...target.twAssets } : {}; form.value.usAssets = target.usAssets ? { ...target.usAssets } : {}; form.value.twIn = target.twIn || null; form.value.twOut = target.twOut || null; form.value.usIn = target.usIn || null; form.value.usOut = target.usOut || null; form.value.usInCurrency = target.usInCurrency || 'USD'; form.value.usOutCurrency = target.usOutCurrency || 'USD'; } else { form.value.twAssets = {}; form.value.usAssets = {}; form.value.twIn = null; form.value.twOut = null; form.value.usIn = null; form.value.usOut = null; form.value.usInCurrency = 'USD'; form.value.usOutCurrency = 'USD'; } };
 const addAccount = (type) => { if (type === 'tw') { const name = newTwAccountName.value.trim(); if (!name) return alert('請輸入帳戶名稱'); if (settings.value.twAccounts.includes(name)) return alert('帳戶名稱已存在'); settings.value.twAccounts.push(name); newTwAccountName.value = ''; } else { const name = newUsAccountName.value.trim(); if (!name) return alert('請輸入帳戶名稱'); if (settings.value.usAccounts.includes(name)) return alert('帳戶名稱已存在'); settings.value.usAccounts.push(name); newUsAccountName.value = ''; } saveData(); };
-const removeAccount = (type,     const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
-    createApp({
-      setup() {
+const removeAccount = (type, index) => {
+  if (!confirm('刪除帳戶不會刪除歷史紀錄，但在今日記帳時會移除該項目，確定刪除嗎？')) return;
+  if (type === 'tw') { settings.value.twAccounts.splice(index, 1); }
+  else { settings.value.usAccounts.splice(index, 1); }
+  saveData();
+};
+
+const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+createApp({
+  setup() {
+
         const activeTab = ref('home');
         const isCloudMode = ref(false);
         let chartInstance = null;
