@@ -38,6 +38,14 @@
           <h3 class="text-gray-600 font-semibold mb-3 text-sm"><i class="fas fa-chart-line mr-2 text-blue-500"></i>總資產走勢 (TWD)</h3>
           <canvas id="assetChart" width="400" height="200"></canvas>
         </div>
+         <div class="bg-white rounded-xl shadow p-4 mb-4 border border-gray-100">
+          <h3 class="text-gray-600 font-semibold mb-3 text-sm"><i class="fas fa-chart-bar mr-2 text-blue-500"></i>台股資產走勢 (TWD)</h3>
+          <canvas id="twChart" width="400" height="200"></canvas>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 mb-4 border border-gray-100">
+          <h3 class="text-gray-600 font-semibold mb-3 text-sm"><i class="fas fa-chart-bar mr-2 text-green-500"></i>美股資產走勢 (USD)</h3>
+          <canvas id="usChart" width="400" height="200"></canvas>
+        </div>
       </div>
 
       <!-- 記帳畫面 -->
@@ -229,21 +237,58 @@
           renderCharts();
         };
 
+                let twChartInstance = null;
+        let usChartInstance = null;
+
         const renderCharts = async () => {
           await nextTick();
-          const ctx = document.getElementById('assetChart');
-          if (!ctx) return;
-          if (chartInstance) chartInstance.destroy();
           const labels = records.value.map(r => r.date.substring(5));
-          const dataPoints = records.value.map(r => r.totalTW + (r.totalUS * settings.value.usdRate));
-          chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: labels.length ? labels : ['無資料'],
-              datasets: [{ label: '總資產 (TWD)', data: dataPoints.length ? dataPoints : [0], borderColor: '#2563eb', tension: 0.3, fill: true }]
-            },
-            options: { responsive: true, plugins: { legend: { display: false } } }
-          });
+          const labelList = labels.length ? labels : ['無資料'];
+
+          // 1. 總資產圖表
+          const ctxAsset = document.getElementById('assetChart');
+          if (ctxAsset) {
+            if (chartInstance) chartInstance.destroy();
+            const dataPoints = records.value.map(r => r.totalTW + (r.totalUS * settings.value.usdRate));
+            chartInstance = new Chart(ctxAsset, {
+              type: 'line',
+              data: {
+                labels: labelList,
+                datasets: [{ label: '總資產 (TWD)', data: dataPoints.length ? dataPoints : [0], borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', tension: 0.3, fill: true }]
+              },
+              options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+          }
+
+          // 2. 台股資產圖表
+          const ctxTw = document.getElementById('twChart');
+          if (ctxTw) {
+            if (twChartInstance) twChartInstance.destroy();
+            const twData = records.value.map(r => r.totalTW);
+            twChartInstance = new Chart(ctxTw, {
+              type: 'line',
+              data: {
+                labels: labelList,
+                datasets: [{ label: '台股總額 (TWD)', data: twData.length ? twData : [0], borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.08)', tension: 0.3, fill: true }]
+              },
+              options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+          }
+
+          // 3. 美股資產圖表
+          const ctxUs = document.getElementById('usChart');
+          if (ctxUs) {
+            if (usChartInstance) usChartInstance.destroy();
+            const usData = records.value.map(r => r.totalUS);
+            usChartInstance = new Chart(ctxUs, {
+              type: 'line',
+              data: {
+                labels: labelList,
+                datasets: [{ label: '美股總額 (USD)', data: usData.length ? usData : [0], borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.08)', tension: 0.3, fill: true }]
+              },
+              options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+          }
         };
 
         const formatMoney = (num) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(num);
