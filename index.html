@@ -101,9 +101,83 @@
               <div class="flex justify-between items-center mb-1">
                 <label class="text-xs text-gray-600">匯入加碼</label>
                 <button @click="toggleUsInCurrency" class="px-1.5 py-0.5 text-[9px] bg-white border border-green-300 text-gray-600 rounded font-bold shadow-sm">{{ form.usInCurrency || 'USD' }}</button>
-</nav>
               </div>
-                <script>
+              <input type="number" v-model.number="form.usIn" placeholder="0" class="w-full p-2 rounded border border-gray-300 text-right text-red-600">
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-xs text-gray-600">匯出出金</label>
+                <button @click="toggleUsOutCurrency" class="px-1.5 py-0.5 text-[9px] bg-white border border-green-300 text-gray-600 rounded font-bold shadow-sm">{{ form.usOutCurrency || 'USD' }}</button>
+              </div>
+              <input type="number" v-model.number="form.usOut" placeholder="0" class="w-full p-2 rounded border border-gray-300 text-right text-green-600">
+            </div>
+          </div>
+        </div>
+        <button @click="saveRecord" :class="['w-full text-white font-bold py-3 px-4 rounded-xl shadow-md transition', isCloudMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700']">儲存紀錄</button>
+      </div>
+      <div v-show="activeTab === 'settings'">
+        <h2 class="text-xl font-bold mb-4 text-gray-800">設定與帳戶管理</h2>
+        <div class="bg-white rounded-lg border p-4 mb-4 flex justify-between items-center shadow-sm">
+          <div>
+            <h3 class="font-bold text-gray-800">儲存模式</h3>
+            <p class="text-xs text-gray-500">{{ isCloudMode ? '目前儲存於雲端帳號' : '目前儲存於本機裝置' }}</p>
+          </div>
+          <button @click="toggleMode" :class="['px-4 py-2 rounded-full font-bold text-sm text-white transition-colors', isCloudMode ? 'bg-gray-500' : 'bg-indigo-600']">切換至{{ isCloudMode ? '本機' : '雲端' }}</button>
+        </div>
+        <div class="bg-white rounded-lg border p-4 mb-4 shadow-sm">
+          <h3 class="font-bold text-gray-800 mb-3 border-b pb-2"><i class="fas fa-wallet mr-2 text-blue-500"></i>台股帳戶管理</h3>
+          <div class="space-y-2 mb-3">
+            <div v-for="(acc, index) in settings.twAccounts" :key="index" class="flex gap-2 items-center">
+              <input type="text" v-model="settings.twAccounts[index]" @change="saveData" class="flex-1 p-2 border rounded text-sm">
+              <button @click="removeAccount('tw', index)" class="text-red-500 hover:bg-red-50 p-2 rounded"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <input type="text" v-model="newTwAccountName" placeholder="新增台股帳戶名稱" class="flex-1 p-2 border rounded text-sm">
+            <button @click="addAccount('tw')" class="bg-blue-600 text-white px-4 py-2 rounded font-bold text-sm">新增</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-lg border p-4 mb-4 shadow-sm">
+          <h3 class="font-bold text-gray-800 mb-3 border-b pb-2"><i class="fas fa-globe mr-2 text-green-500"></i>美股帳戶管理</h3>
+          <div class="space-y-2 mb-3">
+            <div v-for="(acc, index) in settings.usAccounts" :key="index" class="flex gap-2 items-center">
+              <input type="text" v-model="settings.usAccounts[index]" @change="saveData" class="flex-1 p-2 border rounded text-sm">
+              <button @click="removeAccount('us', index)" class="text-red-500 hover:bg-red-50 p-2 rounded"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <input type="text" v-model="newUsAccountName" placeholder="新增美股帳戶名稱" class="flex-1 p-2 border rounded text-sm">
+            <button @click="addAccount('us')" class="bg-green-600 text-white px-4 py-2 rounded font-bold text-sm">新增</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-lg border p-4 mb-4 shadow-sm">
+          <label class="block text-sm font-bold text-gray-700 mb-2">美金匯率 (用於計算總資產)</label>
+          <input type="number" v-model.number="settings.usdRate" @change="saveData" class="w-full p-2 border rounded focus:border-blue-500 outline-none">
+        </div>
+        <div class="bg-white rounded-lg border p-4 mb-4 space-y-4 shadow-sm">
+          <h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-file-export mr-2 text-blue-500"></i>匯出與匯入</h3>
+          <button @click="exportData" class="w-full bg-gray-800 text-white py-3 rounded shadow-sm font-medium">匯出資料 (下載 JSON 檔)</button>
+          <div class="relative">
+            <input type="file" @change="importData" accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+            <button class="w-full bg-white border-2 border-gray-800 text-gray-800 py-3 rounded shadow-sm font-medium">匯入資料 (選擇檔案)</button>
+          </div>
+          <p class="text-xs text-gray-500 text-center mt-2">提示：匯入資料會覆蓋目前的紀錄。</p>
+        </div>
+      </div>
+    </main>
+    <nav class="bg-white border-t border-gray-200 flex justify-around w-full shrink-0 pt-3 pb-6">
+      <button @click="activeTab = 'home'" :class="['flex-1 py-2 text-center transition-colors', activeTab === 'home' ? (isCloudMode ? 'text-indigo-600' : 'text-blue-600') : 'text-gray-400']">
+        <i class="fas fa-home text-xl mb-1 block"></i><span class="text-xs font-medium">首頁</span>
+      </button>
+      <button @click="activeTab = 'record'" :class="['flex-1 py-2 text-center transition-colors', activeTab === 'record' ? (isCloudMode ? 'text-indigo-600' : 'text-blue-600') : 'text-gray-400']">
+        <i class="fas fa-edit text-xl mb-1 block"></i><span class="text-xs font-medium">記帳</span>
+      </button>
+      <button @click="activeTab = 'settings'" :class="['flex-1 py-2 text-center transition-colors', activeTab === 'settings' ? (isCloudMode ? 'text-indigo-600' : 'text-blue-600') : 'text-gray-400']">
+        <i class="fas fa-cog text-xl mb-1 block"></i><span class="text-xs font-medium">設定</span>
+      </button>
+    </nav>
+  </div>
+  <script>
     const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
     createApp({
       setup() {
@@ -215,7 +289,6 @@
         };
 
         onMounted(() => { loadData(); renderCharts(); });
-
         const latestRecord = computed(() => records.value.length > 0 ? records.value[records.value.length - 1] : null);
         const totalAssetTwd = computed(() => {
           if (!latestRecord.value) return 0;
