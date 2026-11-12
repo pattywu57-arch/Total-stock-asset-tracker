@@ -12,44 +12,152 @@
 </head>
 <body class="bg-gray-100 text-gray-800">
   <div id="app" class="max-w-md mx-auto bg-white h-full flex flex-col shadow-lg relative">
-    <header class="p-4 bg-blue-600 text-white text-center">
+    <header class="p-4 bg-blue-600 text-white text-center flex justify-between items-center">
       <h1 class="text-lg font-bold">資產追蹤日記</h1>
+      <button @click="activeTab = 'settings'" class="text-xs bg-white/20 px-2.5 py-1 rounded-full"><i class="fas fa-cog mr-1"></i>設定</button>
     </header>
+    
     <main class="flex-1 p-4 overflow-y-auto">
-      <div class="bg-white rounded-xl shadow p-5 mb-6 text-center">
-        <p class="text-gray-500 text-sm mb-1">總資產 (TWD)</p>
-        <h2 class="text-3xl font-bold mb-4">{{ formatMoney(totalAssetTwd) }}</h2>
-      </div>
-      <div class="bg-blue-50 rounded-lg p-4 mb-4">
-        <h3 class="font-bold text-blue-800 mb-3">台股帳戶餘額 (TWD)</h3>
-        <div v-for="acc in settings.twAccounts" :key="acc" class="flex items-center mb-3">
-          <span class="w-24 text-sm font-medium">{{ acc }}</span>
-          <input type="number" v-model.number="form.twAssets[acc]" placeholder="今日餘額" class="flex-1 p-2 rounded border text-right">
+      <!-- 首頁畫面 -->
+      <div v-show="activeTab === 'home'">
+        <div class="bg-white rounded-xl shadow p-5 mb-6 text-center border border-gray-100">
+          <p class="text-gray-500 text-sm mb-1">總資產 (TWD)</p>
+          <h2 class="text-3xl font-bold mb-4 text-gray-800">{{ formatMoney(totalAssetTwd) }}</h2>
+          <div class="grid grid-cols-2 gap-4 border-t pt-4">
+            <div>
+              <p class="text-xs text-gray-500 mb-1">台股總損益</p>
+              <p :class="['font-semibold', twPnL >= 0 ? 'text-red-500' : 'text-green-500']">{{ twPnL >= 0 ? '+' : '' }}{{ formatMoney(twPnL) }}</p>
+            </div>
+            <div class="border-l">
+              <p class="text-xs text-gray-500 mb-1">美股總損益 (USD)</p>
+              <p :class="['font-semibold', usPnL >= 0 ? 'text-red-500' : 'text-green-500']">{{ usPnL >= 0 ? '+' : '' }}{{ formatMoney(usPnL) }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 mb-4 border border-gray-100">
+          <h3 class="text-gray-600 font-semibold mb-3 text-sm"><i class="fas fa-chart-line mr-2 text-blue-500"></i>總資產走勢 (TWD)</h3>
+          <canvas id="assetChart" width="400" height="200"></canvas>
         </div>
       </div>
-      <div class="bg-white rounded-lg border p-4 mb-4">
-        <h3 class="font-bold mb-2">管理台股帳戶</h3>
-        <div v-for="(acc, index) in settings.twAccounts" :key="index" class="flex gap-2 mb-2">
-          <input type="text" v-model="settings.twAccounts[index]" class="flex-1 p-2 border rounded text-sm">
-          <button @click="removeAccount('tw', index)" class="text-red-500 px-2">刪除</button>
+
+      <!-- 記帳畫面 -->
+      <div v-show="activeTab === 'record'">
+        <h2 class="text-xl font-bold mb-4 text-gray-800">資產結算</h2>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">記錄日期</label>
+          <input type="date" v-model="form.date" @change="onDateChange" class="w-full border p-2 rounded-lg">
         </div>
-        <div class="flex gap-2 mt-2">
-          <input type="text" v-model="newTwAccountName" placeholder="新帳戶名稱" class="flex-1 p-2 border rounded text-sm">
-          <button @click="addAccount('tw')" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">新增</button>
+        <div class="bg-blue-50 rounded-lg p-4 mb-4">
+          <h3 class="font-bold text-blue-800 mb-3">台股帳戶餘額 (TWD)</h3>
+          <div v-for="acc in settings.twAccounts" :key="acc" class="flex items-center mb-3">
+            <span class="w-24 text-sm font-medium">{{ acc }}</span>
+            <input type="number" v-model.number="form.twAssets[acc]" placeholder="今日餘額" class="flex-1 p-2 rounded border text-right">
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-blue-200">
+            <div>
+              <label class="text-xs text-gray-600 block mb-1">台股加碼</label>
+              <input type="number" v-model.number="form.twIn" placeholder="0" class="w-full p-2 rounded border text-right text-red-600">
+            </div>
+            <div>
+              <label class="text-xs text-gray-600 block mb-1">台股出金</label>
+              <input type="number" v-model.number="form.twOut" placeholder="0" class="w-full p-2 rounded border text-right text-green-600">
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-green-50 rounded-lg p-4 mb-6">
+          <h3 class="font-bold text-green-800 mb-3">美股帳戶餘額</h3>
+          <div v-for="acc in settings.usAccounts" :key="acc" class="flex items-center mb-3">
+            <span class="w-20 text-sm font-medium">{{ acc }}</span>
+            <button @click="toggleUsAccCurrency(acc)" class="px-2 py-1 text-[10px] bg-white border text-gray-600 rounded mr-2 font-bold">{{ getUsAccCurrency(acc) }}</button>
+            <input type="number" v-model.number="form.usAssets[acc]" :placeholder="getUsAccCurrency(acc)" class="flex-1 p-2 rounded border text-right">
+          </div>
+        </div>
+        <button @click="saveRecord" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow">儲存紀錄</button>
+      </div>
+
+      <!-- 設定畫面 -->
+      <div v-show="activeTab === 'settings'">
+        <h2 class="text-xl font-bold mb-4 text-gray-800">帳戶與設定</h2>
+        <div class="bg-white rounded-lg border p-4 mb-4">
+          <h3 class="font-bold mb-2">台股帳戶管理</h3>
+          <div v-for="(acc, index) in settings.twAccounts" :key="index" class="flex gap-2 mb-2">
+            <input type="text" v-model="settings.twAccounts[index]" @change="saveData" class="flex-1 p-2 border rounded text-sm">
+            <button @click="removeAccount('tw', index)" class="text-red-500 px-2">刪除</button>
+          </div>
+          <div class="flex gap-2 mt-2">
+            <input type="text" v-model="newTwAccountName" placeholder="新台股帳戶" class="flex-1 p-2 border rounded text-sm">
+            <button @click="addAccount('tw')" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">新增</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-lg border p-4 mb-4">
+          <label class="block text-sm font-bold text-gray-700 mb-2">美金匯率</label>
+          <input type="number" v-model.number="settings.usdRate" @change="saveData" class="w-full p-2 border rounded">
         </div>
       </div>
     </main>
+
+    <nav class="bg-white border-t flex justify-around w-full py-3">
+      <button @click="activeTab = 'home'" :class="['flex-1 text-center', activeTab === 'home' ? 'text-blue-600 font-bold' : 'text-gray-400']">首頁</button>
+      <button @click="activeTab = 'record'" :class="['flex-1 text-center', activeTab === 'record' ? 'text-blue-600 font-bold' : 'text-gray-400']">記帳</button>
+      <button @click="activeTab = 'settings'" :class="['flex-1 text-center', activeTab === 'settings' ? 'text-blue-600 font-bold' : 'text-gray-400']">設定</button>
+    </nav>
+  </div>
+
   <script>
-    const { createApp, ref, computed } = Vue;
+    const { createApp, ref, computed, onMounted, nextTick } = Vue;
     createApp({
       setup() {
         const activeTab = ref('home');
         const isCloudMode = ref(false);
+        let chartInstance = null;
+        
         const newTwAccountName = ref('');
-        const defaultSettings = { twAccounts: ['群益', '元大', '中信'], usAccounts: ['Firstrade'], usdRate: 32.5 };
+        const newUsAccountName = ref('');
+        const defaultSettings = { twAccounts: ['群益', '元大', '中信'], usAccounts: ['Firstrade', '嘉信'], usdRate: 32.5, usAccountCurrencies: {} };
         const settings = ref({ ...defaultSettings });
         const records = ref([]);
-        const form = ref({ date: '', twAssets: {}, twIn: 0, twOut: 0 });
+        const costTW = ref(0);
+        const costUS = ref(0);
+
+        const getToday = () => {
+          const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+          return d.toISOString().split('T')[0];
+        };
+        const form = ref({ date: getToday(), twAssets: {}, usAssets: {}, twIn: 0, twOut: 0, usIn: 0, usOut: 0, usInCurrency: 'USD', usOutCurrency: 'USD' });
+        
+        const loadData = () => {
+          const raw = localStorage.getItem('stock_app_local_v1');
+          if (raw) {
+            const data = JSON.parse(raw);
+            settings.value = data.settings || { ...defaultSettings };
+            records.value = data.records || [];
+            costTW.value = data.costTW || 0;
+            costUS.value = data.costUS || 0;
+          }
+          if (!settings.value.usAccountCurrencies) settings.value.usAccountCurrencies = {};
+        };
+
+        const saveData = () => {
+          localStorage.setItem('stock_app_local_v1', JSON.stringify({ settings: settings.value, records: records.value, costTW: costTW.value, costUS: costUS.value }));
+        };
+
+        const getUsAccCurrency = (acc) => settings.value.usAccountCurrencies[acc] || 'USD';
+        const toggleUsAccCurrency = (acc) => {
+          settings.value.usAccountCurrencies[acc] = getUsAccCurrency(acc) === 'USD' ? 'TWD' : 'USD';
+          saveData();
+        };
+
+        const onDateChange = () => {
+          const target = records.value.find(r => r.date === form.value.date);
+          if (target) {
+            form.value.twAssets = target.twAssets ? { ...target.twAssets } : {};
+            form.value.usAssets = target.usAssets ? { ...target.usAssets } : {};
+          } else {
+            form.value.twAssets = {};
+            form.value.usAssets = {};
+          }
+        };
 
         const addAccount = (type) => {
           if (type === 'tw') {
@@ -58,25 +166,79 @@
             settings.value.twAccounts.push(name);
             newTwAccountName.value = '';
           }
+          saveData();
         };
 
         const removeAccount = (type, index) => {
           if (type === 'tw') settings.value.twAccounts.splice(index, 1);
+          saveData();
         };
 
-        const totalAssetTwd = computed(() => 168888);
-        const twPnL = computed(() => 10000);
-        const usPnL = computed(() => 500);
+        onMounted(() => { loadData(); renderCharts(); });
 
-        const formatMoney = (num) => new Intl.NumberFormat('zh-TW').format(num);
+        const latestRecord = computed(() => records.value.length > 0 ? records.value[records.value.length - 1] : null);
+        const totalAssetTwd = computed(() => {
+          if (!latestRecord.value) return 0;
+          return latestRecord.value.totalTW + (latestRecord.value.totalUS * settings.value.usdRate);
+        });
+        const twPnL = computed(() => latestRecord.value ? latestRecord.value.totalTW - costTW.value : 0);
+        const usPnL = computed(() => latestRecord.value ? latestRecord.value.totalUS - costUS.value : 0);
+
+        const saveRecord = () => {
+          if(!form.value.date) return alert("請選擇日期");
+          let twSum = 0; let usSum = 0;
+          settings.value.twAccounts.forEach(acc => { twSum += Number(form.value.twAssets[acc] || 0) });
+          settings.value.usAccounts.forEach(acc => { 
+            let val = Number(form.value.usAssets[acc] || 0);
+            usSum += (getUsAccCurrency(acc) === 'TWD' ? val / settings.value.usdRate : val);
+          });
+
+          const tIn = Number(form.value.twIn || 0); const tOut = Number(form.value.twOut || 0);
+          costTW.value = costTW.value + tIn - tOut;
+
+          const newRecord = { 
+            date: form.value.date, totalTW: twSum, totalUS: usSum, 
+            twAssets: { ...form.value.twAssets }, usAssets: { ...form.value.usAssets }
+          };
+
+          const idx = records.value.findIndex(r => r.date === form.value.date);
+          if (idx >= 0) records.value[idx] = newRecord;
+          else records.value.push(newRecord);
+          records.value.sort((a,b) => new Date(a.date) - new Date(b.date));
+          
+          saveData();
+          alert("儲存成功！");
+          activeTab.value = 'home';
+          renderCharts();
+        };
+
+        const renderCharts = async () => {
+          await nextTick();
+          const ctx = document.getElementById('assetChart');
+          if (!ctx) return;
+          if (chartInstance) chartInstance.destroy();
+          const labels = records.value.map(r => r.date.substring(5));
+          const dataPoints = records.value.map(r => r.totalTW + (r.totalUS * settings.value.usdRate));
+          chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels.length ? labels : ['無資料'],
+              datasets: [{ label: '總資產 (TWD)', data: dataPoints.length ? dataPoints : [0], borderColor: '#2563eb', tension: 0.3, fill: true }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } } }
+          });
+        };
+
+        const formatMoney = (num) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(num);
 
         return {
-          activeTab, isCloudMode, settings, form, newTwAccountName,
-          totalAssetTwd, twPnL, usPnL, addAccount, removeAccount, formatMoney
+          activeTab, isCloudMode, settings, form, totalAssetTwd, twPnL, usPnL,
+          newTwAccountName, newUsAccountName, addAccount, removeAccount,
+          getUsAccCurrency, toggleUsAccCurrency, onDateChange,
+          saveRecord, saveData, formatMoney
         };
       }
     }).mount('#app');
   </script>
 </body>
 </html>
-
