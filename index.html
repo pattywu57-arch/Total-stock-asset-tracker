@@ -90,6 +90,18 @@
             <button @click="addAccount('tw')" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">新增</button>
           </div>
         </div>
+                <div class="bg-white rounded-lg border p-4 mb-4">
+          <h3 class="font-bold mb-2">美股帳戶管理</h3>
+          <div v-for="(acc, index) in settings.usAccounts" :key="index" class="flex gap-2 mb-2">
+            <input type="text" v-model="settings.usAccounts[index]" @change="saveData" class="flex-1 p-2 border rounded text-sm">
+            <button @click="removeAccount('us', index)" class="text-red-500 px-2">刪除</button>
+          </div>
+          <div class="flex gap-2 mt-2">
+            <input type="text" v-model="newUsAccountName" placeholder="新美股帳戶" class="flex-1 p-2 border rounded text-sm">
+            <button @click="addAccount('us')" class="bg-green-600 text-white px-4 py-2 rounded text-sm">新增</button>
+          </div>
+        </div>
+
         <div class="bg-white rounded-lg border p-4 mb-4">
           <label class="block text-sm font-bold text-gray-700 mb-2">美金匯率</label>
           <input type="number" v-model.number="settings.usdRate" @change="saveData" class="w-full p-2 border rounded">
