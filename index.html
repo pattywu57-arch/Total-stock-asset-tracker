@@ -8,25 +8,265 @@ const getUsAccCurrency = (acc) => settings.value.usAccountCurrencies[acc] || 'US
 const toggleUsInCurrency = () => { form.value.usInCurrency = form.value.usInCurrency === 'USD' ? 'TWD' : 'USD'; }; const toggleUsOutCurrency = () => { form.value.usOutCurrency = form.value.usOutCurrency === 'USD' ? 'TWD' : 'USD'; };
 const onDateChange = () => { const target = records.value.find(r => r.date === form.value.date); if (target) { form.value.twAssets = target.twAssets ? { ...target.twAssets } : {}; form.value.usAssets = target.usAssets ? { ...target.usAssets } : {}; form.value.twIn = target.twIn || null; form.value.twOut = target.twOut || null; form.value.usIn = target.usIn || null; form.value.usOut = target.usOut || null; form.value.usInCurrency = target.usInCurrency || 'USD'; form.value.usOutCurrency = target.usOutCurrency || 'USD'; } else { form.value.twAssets = {}; form.value.usAssets = {}; form.value.twIn = null; form.value.twOut = null; form.value.usIn = null; form.value.usOut = null; form.value.usInCurrency = 'USD'; form.value.usOutCurrency = 'USD'; } };
 const addAccount = (type) => { if (type === 'tw') { const name = newTwAccountName.value.trim(); if (!name) return alert('請輸入帳戶名稱'); if (settings.value.twAccounts.includes(name)) return alert('帳戶名稱已存在'); settings.value.twAccounts.push(name); newTwAccountName.value = ''; } else { const name = newUsAccountName.value.trim(); if (!name) return alert('請輸入帳戶名稱'); if (settings.value.usAccounts.includes(name)) return alert('帳戶名稱已存在'); settings.value.usAccounts.push(name); newUsAccountName.value = ''; } saveData(); };
-const removeAccount = (type, index) => { if (!confirm('刪除帳戶不會刪除歷史紀錄，但在今日記帳時會移除該項目，確定刪除嗎？')) return; if (type === 'tw') { settings.value.twAccounts.splice(index, 1); } else { settings.value.usAccounts.splice(index, 1); } saveData(); };
-const toggleMode = () => { isCloudMode.value = !isCloudMode.value; loadData(); if(activeTab.value === 'home') renderCharts(); alert(已切換至 ${isCloudMode.value ? '雲端' : '本機'} 模式！); };
-onMounted(() => { loadData(); renderCharts(); });
-const latestRecord = computed(() => records.value.length > 0 ? records.value[records.value.length - 1] : null); const totalAssetTwd = computed(() => { if (!latestRecord.value) return 0; return latestRecord.value.totalTW + (latestRecord.value.totalUS * settings.value.usdRate); }); const twPnL = computed(() => latestRecord.value ? latestRecord.value.totalTW - costTW.value : 0); const usPnL = computed(() => latestRecord.value ? latestRecord.value.totalUS - costUS.value : 0);
-const saveRecord = () => { if(!form.value.date) return alert("請選擇日期！"); let twSum = 0; let usSum = 0; settings.value.twAccounts.forEach(acc => { twSum += Number(form.value.twAssets[acc] || 0) });
-let uIn = Number(form.value.usIn || 0); if (form.value.usInCurrency === 'TWD') uIn = uIn / settings.value.usdRate;
-let uOut = Number(form.value.usOut || 0); if (form.value.usOutCurrency === 'TWD') uOut = uOut / settings.value.usdRate;
-settings.value.usAccounts.forEach(acc => { let val = Number(form.value.usAssets[acc] || 0); if (getUsAccCurrency(acc) === 'TWD') { usSum += (val / settings.value.usdRate); } else { usSum += val; } });
-const tIn = Number(form.value.twIn || 0); const tOut = Number(form.value.twOut || 0);
-const idx = records.value.findIndex(r => r.date === form.value.date); if (idx >= 0) { const oldR = records.value[idx]; const oldUIn = (oldR.usInCurrency === 'TWD' ? (oldR.usIn || 0) / settings.value.usdRate : (oldR.usIn || 0)); const oldUOut = (oldR.usInCurrency === 'TWD' ? (oldR.usOut || 0) / settings.value.usdRate : (oldR.usOut || 0)); costTW.value = costTW.value - Number(oldR.twIn || 0) + Number(oldR.twOut || 0); costUS.value = costUS.value - oldUIn + oldUOut; } costTW.value = costTW.value + tIn - tOut; costUS.value = costUS.value + uIn - uOut;
-const newRecord = { date: form.value.date, totalTW: twSum, totalUS: usSum, costTWSnapshot: costTW.value, costUSSnapshot: costUS.value, twAssets: { ...form.value.twAssets }, usAssets: { ...form.value.usAssets }, twIn: form.value.twIn, twOut: form.value.twOut, usIn: form.value.usIn, usOut: form.value.usOut, usInCurrency: form.value.usInCurrency, usOutCurrency: form.value.usOutCurrency };
-if (idx >= 0) { records.value[idx] = newRecord; } else { records.value.push(newRecord); records.value.sort((a,b) => new Date(a.date) - new Date(b.date)); }
-saveData(); form.value.twIn = null; form.value.twOut = null; form.value.usIn = null; form.value.usOut = null; form.value.usAssets = {}; form.value.twAssets = {}; alert("儲存成功！"); activeTab.value = 'home'; };
-const renderCharts = async () => { await nextTick(); const labels = records.value.map(r => r.date.substring(5));
-const ctxAsset = document.getElementById('assetChart'); if (ctxAsset) { if (chartInstance) chartInstance.destroy(); const dataPoints = records.value.map(r => r.totalTW + (r.totalUS * settings.value.usdRate)); const color = isCloudMode.value ? '#4f46e5' : '#2563eb'; chartInstance = new Chart(ctxAsset, { type: 'line', data: { labels: labels, datasets: [{ label: '總資產 (TWD)', data: dataPoints, borderColor: color, backgroundColor: isCloudMode.value ? 'rgba(79, 70, 229, 0.1)' : 'rgba(37, 99, 235, 0.1)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3 }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } } }); }
-const ctxTw = document.getElementById('twChart'); if (ctxTw) { if (twChartInstance) twChartInstance.destroy(); const twData = records.value.map(r => r.totalTW); twChartInstance = new Chart(ctxTw, { type: 'line', data: { labels: labels, datasets: [{ label: '台股總額 (TWD)', data: twData, borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.08)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3 }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } } }); }
-const ctxUs = document.getElementById('usChart'); if (ctxUs) { if (usChartInstance) usChartInstance.destroy(); const usData = records.value.map(r => r.totalUS); usChartInstance = new Chart(ctxUs, { type: 'line', data: { labels: labels, datasets: [{ label: '美股總額 (USD)', data: usData, borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.08)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3 }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } } }); } };
-watch(activeTab, (newVal) => { if(newVal === 'home') renderCharts(); });
-const exportData = () => { const dataStr = localStorage.getItem(getStorageKey()); if(!dataStr) return alert('目前沒有資料可匯出！'); const blob = new Blob([dataStr], {type: "application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = stock_backup_${isCloudMode.value ? 'cloud' : 'local'}_${getToday()}.json; a.click(); };
-const importData = (event) => { const file = event.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); if(data.records) { localStorage.setItem(getStorageKey(), e.target.result); loadData(); alert('資料匯入成功！'); activeTab.value = 'home'; } else alert('無效的備份檔格式！'); } catch(err) { alert('檔案解析失敗！'); } event.target.value = ''; }; reader.readAsText(file); };
-const formatMoney = (num) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(num);
-return { activeTab, isCloudMode, settings, form, totalAssetTwd, twPnL, usPnL, newTwAccountName, newUsAccountName, addAccount, removeAccount, getUsAccCurrency, toggleUsAccCurrency, toggleUsInCurrency, toggleUsOutCurrency, onDateChange, saveRecord, toggleMode, saveData, exportData, importData, formatMoney }; } }).mount('#app'); </script> </body> </html>
+const removeAccount = (type,     const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+    createApp({
+      setup() {
+        const activeTab = ref('home');
+        const isCloudMode = ref(false);
+        let chartInstance = null;
+        let twChartInstance = null;
+        let usChartInstance = null;
+        
+        const newTwAccountName = ref('');
+        const newUsAccountName = ref('');
+        const defaultSettings = { twAccounts: ['群益', '元大', '中信'], usAccounts: ['Firstrade', '嘉信', 'IB'], usdRate: 32.5 };
+        const settings = ref({ ...defaultSettings });
+        const records = ref([]);
+        const costTW = ref(0);
+        const costUS = ref(0);
+
+        const getToday = () => {
+          const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+          return d.toISOString().split('T')[0];
+        };
+        const form = ref({ date: getToday(), twAssets: {}, usAssets: {}, twIn: null, twOut: null, usIn: null, usOut: null, usInCurrency: 'USD', usOutCurrency: 'USD' });
+        
+        const getStorageKey = () => isCloudMode.value ? 'stock_app_cloud_v1' : 'stock_app_local_v1';
+        
+        const loadData = () => {
+          const raw = localStorage.getItem(getStorageKey());
+          if (raw) {
+            const data = JSON.parse(raw);
+            settings.value = data.settings || { ...defaultSettings };
+            records.value = data.records || [];
+            costTW.value = data.costTW || 0;
+            costUS.value = data.costUS || 0;
+          } else {
+            settings.value = { ...defaultSettings }; records.value = []; costTW.value = 0; costUS.value = 0;
+          }
+          if (!settings.value.usAccountCurrencies) settings.value.usAccountCurrencies = {};
+        };
+
+        const saveData = () => {
+          localStorage.setItem(getStorageKey(), JSON.stringify({ settings: settings.value, records: records.value, costTW: costTW.value, costUS: costUS.value }));
+        };
+
+        const getUsAccCurrency = (acc) => settings.value.usAccountCurrencies[acc] || 'USD';
+        const toggleUsAccCurrency = (acc) => {
+          settings.value.usAccountCurrencies[acc] = getUsAccCurrency(acc) === 'USD' ? 'TWD' : 'USD';
+          saveData();
+        };
+
+        const toggleUsInCurrency = () => {
+          form.value.usInCurrency = form.value.usInCurrency === 'USD' ? 'TWD' : 'USD';
+        };
+        const toggleUsOutCurrency = () => {
+          form.value.usOutCurrency = form.value.usOutCurrency === 'USD' ? 'TWD' : 'USD';
+        };
+
+        const onDateChange = () => {
+          const target = records.value.find(r => r.date === form.value.date);
+          if (target) {
+            form.value.twAssets = target.twAssets ? { ...target.twAssets } : {};
+            form.value.usAssets = target.usAssets ? { ...target.usAssets } : {};
+            form.value.twIn = target.twIn || null;
+            form.value.twOut = target.twOut || null;
+            form.value.usIn = target.usIn || null;
+            form.value.usOut = target.usOut || null;
+            form.value.usInCurrency = target.usInCurrency || 'USD';
+            form.value.usOutCurrency = target.usOutCurrency || 'USD';
+          } else {
+            form.value.twAssets = {};
+            form.value.usAssets = {};
+            form.value.twIn = null;
+            form.value.twOut = null;
+            form.value.usIn = null;
+            form.value.usOut = null;
+            form.value.usInCurrency = 'USD';
+            form.value.usOutCurrency = 'USD';
+          }
+        };
+
+        const addAccount = (type) => {
+          if (type === 'tw') {
+            const name = newTwAccountName.value.trim();
+            if (!name) return alert('請輸入帳戶名稱');
+            if (settings.value.twAccounts.includes(name)) return alert('帳戶名稱已存在');
+            settings.value.twAccounts.push(name);
+            newTwAccountName.value = '';
+          } else {
+            const name = newUsAccountName.value.trim();
+            if (!name) return alert('請輸入帳戶名稱');
+            if (settings.value.usAccounts.includes(name)) return alert('帳戶名稱已存在');
+            settings.value.usAccounts.push(name);
+            newUsAccountName.value = '';
+          }
+          saveData();
+        };
+
+        const removeAccount = (type, index) => {
+          if (!confirm('刪除帳戶不會刪除歷史紀錄，但在今日記帳時會移除該項目，確定刪除嗎？')) return;
+          if (type === 'tw') { settings.value.twAccounts.splice(index, 1); }
+          else { settings.value.usAccounts.splice(index, 1); }
+          saveData();
+        };
+
+        const toggleMode = () => {
+          isCloudMode.value = !isCloudMode.value;
+          loadData();
+          if(activeTab.value === 'home') renderCharts();
+          alert(`已切換至 ${isCloudMode.value ? '雲端' : '本機'} 模式！`);
+        };
+
+        onMounted(() => { loadData(); renderCharts(); });
+
+        const latestRecord = computed(() => records.value.length > 0 ? records.value[records.value.length - 1] : null);
+        const totalAssetTwd = computed(() => {
+          if (!latestRecord.value) return 0;
+          return latestRecord.value.totalTW + (latestRecord.value.totalUS * settings.value.usdRate);
+        });
+        const twPnL = computed(() => latestRecord.value ? latestRecord.value.totalTW - costTW.value : 0);
+        const usPnL = computed(() => latestRecord.value ? latestRecord.value.totalUS - costUS.value : 0);
+
+        const saveRecord = () => {
+          if(!form.value.date) return alert("請選擇日期！");
+          let twSum = 0; let usSum = 0;
+          settings.value.twAccounts.forEach(acc => { twSum += Number(form.value.twAssets[acc] || 0) });
+          
+          let uIn = Number(form.value.usIn || 0);
+          if (form.value.usInCurrency === 'TWD') uIn = uIn / settings.value.usdRate;
+          
+          let uOut = Number(form.value.usOut || 0);
+          if (form.value.usOutCurrency === 'TWD') uOut = uOut / settings.value.usdRate;
+          
+          settings.value.usAccounts.forEach(acc => { 
+            let val = Number(form.value.usAssets[acc] || 0);
+            if (getUsAccCurrency(acc) === 'TWD') {
+              usSum += (val / settings.value.usdRate);
+            } else {
+              usSum += val;
+            }
+          });
+
+          const tIn = Number(form.value.twIn || 0); const tOut = Number(form.value.twOut || 0);
+          
+          const idx = records.value.findIndex(r => r.date === form.value.date);
+          if (idx >= 0) {
+             const oldR = records.value[idx];
+             const oldUIn = (oldR.usInCurrency === 'TWD' ? (oldR.usIn || 0) / settings.value.usdRate : (oldR.usIn || 0));
+             const oldUOut = (oldR.usInCurrency === 'TWD' ? (oldR.usOut || 0) / settings.value.usdRate : (oldR.usOut || 0));
+             costTW.value = costTW.value - Number(oldR.twIn || 0) + Number(oldR.twOut || 0);
+             costUS.value = costUS.value - oldUIn + oldUOut;
+          }
+          costTW.value = costTW.value + tIn - tOut;
+          costUS.value = costUS.value + uIn - uOut;
+
+          const newRecord = { 
+            date: form.value.date, totalTW: twSum, totalUS: usSum, 
+            costTWSnapshot: costTW.value, costUSSnapshot: costUS.value,
+            twAssets: { ...form.value.twAssets }, usAssets: { ...form.value.usAssets },
+            twIn: form.value.twIn, twOut: form.value.twOut,
+            usIn: form.value.usIn, usOut: form.value.usOut,
+            usInCurrency: form.value.usInCurrency, usOutCurrency: form.value.usOutCurrency
+          };
+
+          if (idx >= 0) { records.value[idx] = newRecord; }
+          else { records.value.push(newRecord); records.value.sort((a,b) => new Date(a.date) - new Date(b.date)); }
+          
+          saveData();
+          form.value.twIn = null; form.value.twOut = null; form.value.usIn = null; form.value.usOut = null;
+          form.value.usAssets = {}; form.value.twAssets = {};
+          alert("儲存成功！");
+          activeTab.value = 'home';
+        };
+
+        const renderCharts = async () => {
+          await nextTick();
+          const labels = records.value.map(r => r.date.substring(5));
+          
+          const ctxAsset = document.getElementById('assetChart');
+          if (ctxAsset) {
+            if (chartInstance) chartInstance.destroy();
+            const dataPoints = records.value.map(r => r.totalTW + (r.totalUS * settings.value.usdRate));
+            const color = isCloudMode.value ? '#4f46e5' : '#2563eb';
+            chartInstance = new Chart(ctxAsset, {
+              type: 'line',
+              data: {
+                labels: labels,
+                datasets: [{ label: '總資產 (TWD)', data: dataPoints, borderColor: color, backgroundColor: isCloudMode.value ? 'rgba(79, 70, 229, 0.1)' : 'rgba(37, 99, 235, 0.1)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3 }]
+              },
+              options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } }
+            });
+          }
+
+          const ctxTw = document.getElementById('twChart');
+          if (ctxTw) {
+            if (twChartInstance) twChartInstance.destroy();
+            const twData = records.value.map(r => r.totalTW);
+            twChartInstance = new Chart(ctxTw, {
+              type: 'line',
+              data: {
+                labels: labels,
+                datasets: [{ label: '台股總額 (TWD)', data: twData, borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.08)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3 }]
+              },
+              options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } }
+            });
+          }
+
+          const ctxUs = document.getElementById('usChart');
+          if (ctxUs) {
+            if (usChartInstance) usChartInstance.destroy();
+            const usData = records.value.map(r => r.totalUS);
+            usChartInstance = new Chart(ctxUs, {
+              type: 'line',
+              data: {
+                labels: labels,
+                datasets: [{ label: '美股總額 (USD)', data: usData, borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.08)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3 }]
+              },
+              options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } }
+            });
+          }
+        };
+
+        watch(activeTab, (newVal) => { if(newVal === 'home') renderCharts(); });
+
+        const exportData = () => {
+          const dataStr = localStorage.getItem(getStorageKey());
+          if(!dataStr) return alert('目前沒有資料可匯出！');
+          const blob = new Blob([dataStr], {type: "application/json"});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = `stock_backup_${isCloudMode.value ? 'cloud' : 'local'}_${getToday()}.json`;
+          a.click();
+        };
+
+        const importData = (event) => {
+          const file = event.target.files[0];
+          if(!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const data = JSON.parse(e.target.result);
+              if(data.records) {
+                localStorage.setItem(getStorageKey(), e.target.result);
+                loadData();
+                alert('資料匯入成功！'); activeTab.value = 'home';
+              } else alert('無效的備份檔格式！');
+            } catch(err) { alert('檔案解析失敗！'); }
+            event.target.value = '';
+          };
+          reader.readAsText(file);
+        };
+
+        const formatMoney = (num) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(num);
+
+        return {
+          activeTab, isCloudMode, settings, form, totalAssetTwd, twPnL, usPnL,
+          newTwAccountName, newUsAccountName, addAccount, removeAccount,
+          getUsAccCurrency, toggleUsAccCurrency, toggleUsInCurrency, toggleUsOutCurrency,
+          onDateChange,
+          saveRecord, toggleMode, saveData, exportData, importData, formatMoney
+        };
+      }
+    }).mount('#app');
+ </script> </body> </html>
