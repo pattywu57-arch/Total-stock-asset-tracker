@@ -195,16 +195,22 @@
           saveData();
         };
 
-        const onDateChange = () => {
+                const onDateChange = () => {
           const target = records.value.find(r => r.date === form.value.date);
           if (target) {
             form.value.twAssets = target.twAssets ? { ...target.twAssets } : {};
             form.value.usAssets = target.usAssets ? { ...target.usAssets } : {};
+            // 💡 讀取該日獨立儲存的加碼/出金，若沒有則預設為 0
+            form.value.twIn = target.twIn || 0;
+            form.value.twOut = target.twOut || 0;
           } else {
             form.value.twAssets = {};
             form.value.usAssets = {};
+            form.value.twIn = 0;
+            form.value.twOut = 0;
           }
         };
+
 
                const addAccount = (type) => {
           if (type === 'tw') {
@@ -258,8 +264,21 @@
             usSum += (getUsAccCurrency(acc) === 'TWD' ? val / settings.value.usdRate : val);
           });
 
-          const tIn = Number(form.value.twIn || 0); const tOut = Number(form.value.twOut || 0);
+                    const tIn = Number(form.value.twIn || 0); 
+          const tOut = Number(form.value.twOut || 0);
+          
+          // 如果你要讓各日的成本分開計算，或是維持原本的全域成本累加：
           costTW.value = costTW.value + tIn - tOut;
+
+          const newRecord = { 
+            date: form.value.date, 
+            totalTW: twSum, 
+            totalUS: usSum, 
+            twIn: tIn,   // 💡 把當天的加碼存起來
+            twOut: tOut, // 💡 把當天的出金存起來
+            twAssets: { ...form.value.twAssets }, 
+            usAssets: { ...form.value.usAssets }
+          };
 
           const newRecord = { 
             date: form.value.date, totalTW: twSum, totalUS: usSum, 
