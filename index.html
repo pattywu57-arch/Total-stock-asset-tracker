@@ -280,11 +280,6 @@
             usAssets: { ...form.value.usAssets }
           };
 
-          const newRecord = { 
-            date: form.value.date, totalTW: twSum, totalUS: usSum, 
-            twAssets: { ...form.value.twAssets }, usAssets: { ...form.value.usAssets }
-          };
-
           const idx = records.value.findIndex(r => r.date === form.value.date);
           if (idx >= 0) records.value[idx] = newRecord;
           else records.value.push(newRecord);
